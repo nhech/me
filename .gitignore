@@ -1,0 +1,8 @@
+dist/
+.DS_Store
+
+# design working files — kept locally, not shipped.
+# .pen is binary: git stores a whole new copy on every edit and cannot diff it,
+# and this repo must be public for Pages to be free.
+design.pen
+profile.jpg
