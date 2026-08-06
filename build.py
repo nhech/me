@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build longtd.me into dist/.
+"""Build longtd.me into docs/.
 
 There is no bundler here on purpose — the site is hand-written static HTML. What this
 does is the part that must not be done by hand: stamp every page with a build id that
@@ -7,9 +7,12 @@ is derived from the content, and refuse to ship if the page fails its own checks
 
     python3 build.py
 
-The stamp is a content hash, not a commit sha, because this tree is not a git repo.
-That is arguably the better choice for a static site: the hash changes when the bytes
-change and anyone can recompute it from what was served.
+Output goes to docs/ because GitHub Pages, deploying from a branch, will only serve the
+repo root or /docs — no other path is selectable. docs/ is committed; run this before
+every commit that touches the site, or the footer stamp goes stale.
+
+The stamp is a content hash rather than a commit sha: it has to be computed before the
+commit exists, and it changes exactly when the served bytes change.
 """
 
 import gzip
@@ -21,7 +24,7 @@ from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).parent
-DIST = ROOT / "dist"
+DIST = ROOT / "docs"   # Pages branch deploys can only read / or /docs
 
 SOURCES = [
     "index.html",
@@ -107,7 +110,7 @@ def main():
         stamp(transfer_kb())
         size = transfer_kb()
 
-    print(f"\n  longtd.me → dist/\n")
+    print(f"\n  longtd.me → docs/\n")
     for p in PAGES:
         html = (DIST / p).read_text(encoding="utf-8")
         check(p, html)
@@ -119,7 +122,7 @@ def main():
     print(f"\n  build   {stamp_hash} · {stamp_date}")
     print(f"  raw     {raw / 1024:.1f} kB")
     print(f"  gzipped {size} kB")
-    print(f"\n  serve:  python3 -m http.server 4321 --directory dist\n")
+    print(f"\n  serve:  python3 -m http.server 4321 --directory docs\n")
 
 
 if __name__ == "__main__":

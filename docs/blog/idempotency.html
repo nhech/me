@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why every money-touching endpoint needs idempotency — Trịnh Duy Long</title>
+<meta name="description" content="Retries are not an edge case. What actually happens when the same transfer arrives twice, and the cheapest way to make it safe.">
+<link rel="canonical" href="https://longtd.me/blog/idempotency.html">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://longtd.me/blog/idempotency.html">
+<meta property="og:title" content="Why every money-touching endpoint needs idempotency">
+<meta property="og:site_name" content="longtd.me">
+<meta property="og:description" content="Retries are not an edge case. What actually happens when the same transfer arrives twice, and the cheapest way to make it safe.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","headline":"Why every money-touching endpoint needs idempotency","author":{"@type":"Person","name":"Trịnh Duy Long","url":"https://longtd.me"},"publisher":{"@type":"Person","name":"Trịnh Duy Long"},"mainEntityOfPage":"https://longtd.me/blog/idempotency.html"}
+</script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<g id="i-ur" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></g>
+<g id="i-left" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></g>
+<g id="i-menu" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></g>
+</defs></svg>
+
+<header class="site-header">
+  <div class="container">
+    <nav class="nav" aria-label="Primary">
+      <a class="brand" href="/">longtd.me</a>
+      <div class="nav__links">
+        <a href="/#about">About</a>
+        <a href="/#projects">Projects</a>
+        <a href="/blog.html" aria-current="page">Blog</a>
+        <a href="/#contact">Contact</a>
+      </div>
+      <a class="btn--sm nav__cta" href="mailto:longtd3012@gmail.com">Get in touch <svg width="14" height="14" viewBox="0 0 24 24"><use href="#i-ur"/></svg></a>
+      <button class="nav__toggle" type="button" aria-expanded="false" aria-controls="menu">
+        <span class="visually-hidden">Menu</span>
+        <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-menu"/></svg>
+      </button>
+    </nav>
+    <div class="nav__sheet" id="menu">
+      <a href="/#about">About</a><a href="/#projects">Projects</a><a href="/blog.html">Blog</a><a href="/#contact">Contact</a>
+    </div>
+  </div>
+</header>
+
+<main class="article">
+  <div class="container">
+    <article class="article__inner">
+
+      <a class="back" href="/blog.html"><svg width="14" height="14" viewBox="0 0 24 24"><use href="#i-left"/></svg> Back to blog</a>
+
+      <p class="article__tag"><span class="chip chip--accent">Backend</span></p>
+      <h1>Why every money-touching endpoint needs idempotency</h1>
+      <p class="article__meta"><time datetime="2026-08-06">2026-08-06</time><i></i><span>8 MIN READ</span><i></i><span>TRỊNH DUY LONG</span></p>
+
+      <hr class="article__rule">
+
+      <div class="article__body">
+        <p class="lead">A retry is not an edge case. It is the normal behaviour of every mobile client on a bad connection, every load balancer with a timeout, and every queue with at-least-once delivery. If your transfer endpoint cannot tell the difference between a new request and a replay, you will move the same money twice.</p>
+
+        <p>On the wallet work at Mirailabs this was the first thing we designed, not the last. Below is the shape that survived production.</p>
+
+        <h2>The contract</h2>
+        <p>The client generates a key and owns it. The server stores the first result against that key and replays it verbatim for any repeat, including the status code.</p>
+
+<pre><code>POST /transfers
+Idempotency-Key: 9f2b41ac-...
+
+→ 201  { id: "tr_81", status: "settled" }   first call
+→ 201  { id: "tr_81", status: "settled" }   replay, same key
+→ 409  { error: "key_reused_with_different_body" }</code></pre>
+
+        <p>The 409 matters. If the same key arrives with a different payload, that is a client bug, and silently returning the old result hides it.</p>
+
+        <h2>Where it actually breaks</h2>
+        <p>Storing the key after the write is the mistake everyone makes once. Two concurrent replays both miss the lookup, both proceed, and you are back where you started. The insert of the key and the write have to land in the same transaction.</p>
+
+        <blockquote>If the key and the write are not in one transaction, you do not have idempotency. You have a race that usually wins.</blockquote>
+
+        <p>Keys expire. Twenty-four hours covered every legitimate retry we saw; anything older is a new intent, not a replay.</p>
+      </div>
+
+      <div class="article__foot">
+        <div><span>WRITTEN BY</span><strong>Trịnh Duy Long</strong></div>
+        <a class="btn--sm" href="/blog.html"><svg width="15" height="15" viewBox="0 0 24 24"><use href="#i-left"/></svg> All posts</a>
+      </div>
+
+    </article>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container"><span>© 2026 Trịnh Duy Long</span><b>BUILD 81ca4d7 · 2026-08-06 · 14 kB</b></div>
+</footer>
+
+<script src="/script.js" defer></script>
+</body>
+</html>

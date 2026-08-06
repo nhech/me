@@ -1,0 +1,18 @@
+{
+  "role": "Senior Backend Engineer",
+  "focus": ["Distributed systems", "Blockchain", "Real-time"],
+  "stack": ["NestJS", "Node.js", "MongoDB", "Redis", "WebSocket"],
+  "built": ["Mirai Wallet", "Chainverse Wallet", "Maple", "Foxy Chat"],
+  "scale": {
+    "users": "~150K",
+    "transactions": "10M+",
+    "scope": "wallet platforms",
+    "since": 2021
+  },
+  "since": 2016,
+  "based": "Hanoi, Vietnam (GMT+7)",
+  "contact": {
+    "email": "longtd3012@gmail.com",
+    "linkedin": "https://linkedin.com/in/nhech"
+  }
+}

@@ -10,7 +10,7 @@ styles.css              design tokens + all components
 script.js               mobile nav toggle (the only JS on the site)
 profile.json            served for real — the hero card's path resolves
 build.py                stamps the build id and refuses to ship a broken page
-dist/                   build output — this is what you deploy
+docs/                   build output — Pages serves this, committed
 design.pen              source design — open in Pencil
 PROFILE-SPEC.md         design + copy spec
 ```
@@ -30,58 +30,42 @@ so opening the files directly with `file://` will not pick up the stylesheet.
 python3 build.py
 ```
 
-No bundler — the site is hand-written static HTML and does not need one. The build does the two
-things that must not be done by hand:
+No bundler — the site is hand-written static HTML and does not need one. Output goes to
+**`docs/`**, which is committed. Run it before every commit that touches the site, or the footer
+stamp goes stale.
+
+The build does the two things that must not be done by hand:
 
 **Stamps the footer.** `BUILD 81ca4d7 · 2026-08-06 · 14 kB` is generated, never typed. The id is a
-sha256 over the sources, not a commit sha, because this tree is not a git repo — arguably the better
-choice for a static site, since the hash changes when the bytes change and anyone can recompute it
-from what was served. The size is the real gzipped transfer weight. A stamp that goes stale inverts
-the whole device, so it is derived or it is not there.
+sha256 over the sources — it has to exist before the commit does, and it changes exactly when the
+served bytes change. The size is the real gzipped transfer weight.
 
 **Refuses to ship a page that contradicts itself.** Unbalanced divs, a leftover `DRAFT`, a missing or
 duplicated `<h1>`, a missing `<title>`, or a non-link card advertising a `Read →` affordance all exit
 non-zero. Verified by injecting each failure — the guards fire, they are not decoration.
 
-Sources are never mutated; everything is written to `dist/`.
+Sources are never mutated; everything is written to `docs/`.
 
 ## Deploy — GitHub Pages
 
-`.github/workflows/deploy.yml` runs `build.py` on every push to `main` and publishes `dist/`.
-`dist/` is gitignored; CI builds it.
+Branch deploy, no CI. **Settings → Pages → Source: `Deploy from a branch` → `main` → `/docs`.**
 
-**The custom domain is not optional here.** The repo is `nhech/me`, so Pages would serve it at
-`nhech.github.io/me/`. Every asset and link on the site is root-relative (`/styles.css`,
-`/blog.html`), so under a subpath the whole site 404s. On `longtd.me` it serves at the root and
-everything resolves. `CNAME` is in the repo root and the build copies it into `dist/`.
+An Actions-based deploy was tried first and abandoned: the workflow ran green, produced the
+artifact and created the deployment, then sat in `deployment_queued` until GitHub timed it out and
+cancelled it. Branch deploy has far fewer moving parts — no workflow, no `github-pages` environment,
+no OIDC token exchange — and for a site this size the tradeoff (running `build.py` by hand) is
+nothing.
 
-One-time setup:
+**The custom domain is not optional.** The repo is `nhech/me`, so Pages would otherwise serve at
+`nhech.github.io/me/`. Every asset and link is root-relative (`/styles.css`, `/blog.html`), so under
+a subpath the whole site 404s. On `longtd.me` it serves at the root. `CNAME` lives in the repo root
+and the build copies it into `docs/`, alongside a `.nojekyll` so Pages does not run Jekyll over the
+output.
 
-1. **Settings → Pages → Source: GitHub Actions** (not "Deploy from a branch").
-2. **Settings → Pages → Custom domain:** `longtd.me`, then tick **Enforce HTTPS** once the
-   certificate is issued.
-3. **DNS at your registrar** — apex `longtd.me`, four A records:
-
-   ```
-   185.199.108.153
-   185.199.109.153
-   185.199.110.153
-   185.199.111.153
-   ```
-
-   Optionally `www` as a `CNAME` to `nhech.github.io`.
-
-Other hosts work unchanged: build command `python3 build.py`, output directory `dist`.
-
-## Why hand-written and not exported from Pencil
-
-`export_html` from the .pen produces a faithful visual dump: nested `div`s with inline styles, a
-hardcoded `width: 1440px`, zero media queries, spacer divs instead of margins, and no `nav`, `h1`,
-`a` or landmark elements. It reproduces the picture but is neither responsive nor maintainable, and
-it cannot be linked or crawled.
-
-This code mirrors the same tokens by hand, so the design and the site stay in sync through
-`styles.css` rather than through re-export.
+DNS is already pointed — apex `longtd.me` has four A records at GitHub's anycast CDN
+(`185.199.108–111.153`) and `www` is a `CNAME` to `nhech.github.io`. Both must be **DNS only** in
+Cloudflare, not proxied: with the orange cloud on, GitHub cannot complete the ACME challenge and
+`Enforce HTTPS` never becomes available.
 
 ## Design tokens
 
